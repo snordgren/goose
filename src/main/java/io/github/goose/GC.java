@@ -4,7 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A very simple tracing garbage collector.
+ * A super-simple tracing garbage collector.
+ *
  */
 public class GC {
     private final byte[] heap;
@@ -12,6 +13,15 @@ public class GC {
     private final List<Chunk> chunkList = new ArrayList<>();
     private final List<Pointer> pointerList = new ArrayList<>();
 
+    /**
+     * Create a new GC with a specific size for the heap and the stack.
+     *
+     * @param heapSize The size of the heap that this garbage collector
+     * should manage. The garbage collector is backed by a byte array with
+     * this many elements.
+     * @param stackSize The size of the stack. Every stack frame will have
+     * this number of pointers available for allocation.
+     */
     public GC(int heapSize, int stackSize) {
         heap = new byte[heapSize];
         stack = new Stack(this, stackSize);
@@ -21,8 +31,7 @@ public class GC {
     /**
      * Allocates a new pointer with the specified size. Note that the size of
      * the pointer is stored immediately ahead of the pointer in memory,
-     * meaning that the actual allocation is 4 bytes larger than the passed
-     * size.
+     * meaning that the actual allocation is larger than the passed size.
      *
      * @param size The size to allocate for use.
      * @return A pointer to the allocated block, or null if allocation was not
@@ -36,15 +45,29 @@ public class GC {
                 .orElse(null);
     }
 
+    /**
+     * Allocate a pointer of a specific size from a specific chunk.
+     *
+     * @param chunk The chunk to use for this pointer.
+     * @param size The size of the pointer.
+     * @return The pointer that was allocated.
+     */
     private Pointer allocateChunk(Chunk chunk, int size) {
-        Chunk tailChunk = chunk.getTail(getRealSize(4));
         chunkList.remove(chunk);
-        chunkList.add(tailChunk);
-        Pointer pointer = new Pointer(stack, chunk.getStart() + 4, size);
+        if (chunk.getSize() > size) {
+            Chunk tailChunk = chunk.getTail(getRealSize(size));
+            chunkList.add(tailChunk);
+        }
+        Pointer pointer = new Pointer(stack, chunk.getStart(), size);
         pointerList.add(pointer);
         return pointer;
     }
 
+    /**
+     * Triggers a garbage collection. Any pointers allocated in a stack frame
+     * that has since been left will be considered unreachable, unless they
+     * are referenced in the currently-in-scope stack frames.
+     */
     public void collect() {
         List<Pointer> unreachable = new ArrayList<>(pointerList);
         Stack currentStack = stack;
@@ -66,7 +89,7 @@ public class GC {
 
         for (Pointer pointer : unreachable) {
             int pointerStart = pointer.getHeaderLocation();
-            int pointerEnd = pointer.getLocation() + pointer.getSize();
+            int pointerEnd = pointer.getAddress() + pointer.getSize();
             chunkList.add(new Chunk(pointerStart, pointerEnd));
             pointer.free();
         }
@@ -74,6 +97,14 @@ public class GC {
         mergeChunks();
     }
 
+    /**
+     * Get a list of values that may be pointers, from the values that are
+     * present at a pointer location. Practically speaking, this method
+     * extracts all the 4-byte combinations present in the pointer.
+     *
+     * @param pointer The pointer to start from.
+     * @return The list of potential pointer-locations.
+     */
     private List<Integer> getPotentialPointers(Pointer pointer) {
         List<Integer> potentialPointers = new ArrayList<>();
         int offset = 0;
@@ -96,15 +127,20 @@ public class GC {
     }
 
     /**
-     * Access the actual size of a
+     * Access the actual size of a pointer, including headers.
      *
-     * @param size
-     * @return
+     * @param size The base size of the pointer.
+     * @return The size of a pointer including headers.
      */
-    private int getRealSize(int size) {
-        return size + 4;
+    public static int getRealSize(int size) {
+        return size + Pointer.HEADER_SIZE;
     }
 
+    /**
+     * Access the raw heap.
+     *
+     * @return The raw byte array backing this garbage collector.
+     */
     public byte[] getHeap() {
         return heap;
     }
@@ -117,18 +153,6 @@ public class GC {
         stack = stack.getParentStack();
     }
 
-    private Chunk getMergeableChunk(List<Chunk> available, Chunk chunk) {
-        Chunk mergeable = null;
-        for (Chunk c : available) {
-            if (c.getStart() == chunk.getEnd() ||
-                    c.getEnd() == chunk.getStart()) {
-                mergeable = c;
-            }
-        }
-
-        return mergeable;
-    }
-
     /**
      * Merge the chunks that are adjacent but still divided, allowing us to
      * allocate larger objects than those that have been freed.
@@ -137,7 +161,7 @@ public class GC {
         List<Chunk> oldChunkList = new ArrayList<>(chunkList);
         chunkList.clear();
         for (Chunk chunk : oldChunkList) {
-            Chunk mergeableChunk = getMergeableChunk(chunkList, chunk);
+            Chunk mergeableChunk = findMergeableChunk(chunkList, chunk);
             if (mergeableChunk != null) {
                 chunkList.remove(mergeableChunk);
                 chunkList.add(mergeableChunk.merge(chunk));
@@ -145,5 +169,23 @@ public class GC {
                 chunkList.add(chunk);
             }
         }
+    }
+
+    /**
+     * Finds a chunk that can be merged with the current one.
+     *
+     * @param available The list of chunks to test.
+     * @param chunk The chunk to be checked for.
+     * @return A chunk that can be merged with, otherwise null.
+     */
+    private static Chunk findMergeableChunk(List<Chunk> available, Chunk chunk) {
+        Chunk mergeable = null;
+        for (Chunk c : available) {
+            if (c.isAdjacent(chunk)) {
+                mergeable = c;
+            }
+        }
+
+        return mergeable;
     }
 }

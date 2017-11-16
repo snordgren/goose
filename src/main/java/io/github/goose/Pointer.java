@@ -1,32 +1,52 @@
 package io.github.goose;
 
 public class Pointer {
+    public static final int HEADER_SIZE = 4;
     private final Stack stack;
-    private final int location;
+    private final int address;
+    private boolean valid = true;
 
-    Pointer(Stack stack, int location, int size) {
+    Pointer(Stack stack, int address, int size) {
+        stack.register(this);
         this.stack = stack;
-        this.location = location;
-        writeInt(size, -4);
+        this.address = address + HEADER_SIZE;
+        writeInt(size, -HEADER_SIZE);
     }
 
     /**
-     * Frees the memory of this pointer, zeroing it.
+     * Sets every byte of this pointer to the value. Example usage is
+     * <code>fill(0)</code> to zero a pointer.
+     *
+     * @param value The value to fill every byte of this pointer with.
      */
-    void free() {
+    public void fill(int value) {
         int size = getSize();
-        writeInt(0, -4);
         for (int i = 0; i < size; i++) {
-            write(0, i);
+            write(value, i);
         }
     }
 
-    public int getHeaderLocation() {
-        return location - 4;
+    /**
+     * Frees the memory of this pointer, and zeroes it.
+     */
+    void free() {
+        fill(0);
+        writeInt(0, -HEADER_SIZE);
+        valid = false;
     }
 
-    public int getLocation() {
-        return location;
+    /**
+     * @return The start address of the headers of this pointer.
+     */
+    public int getHeaderLocation() {
+        return address - HEADER_SIZE;
+    }
+
+    /**
+     * @return The start address of the data of this pointer.
+     */
+    public int getAddress() {
+        return address;
     }
 
     public int getSize() {
@@ -38,28 +58,43 @@ public class Pointer {
         return size;
     }
 
+    public boolean isValid() {
+        return valid;
+    }
+
     public int read() {
         return read(0);
     }
 
     public int read(int offset) {
-        return stack.getGC().getHeap()[location + offset] & 0xFF;
+        return stack.getGC().getHeap()[address + offset] & 0xFF;
     }
 
     public boolean refersTo(int location) {
-        return this.location == location;
+        return this.address == location;
     }
 
+    /**
+     * Writes a byte to the first byte pointed at by this pointer.
+     *
+     * @param b The byte to write.
+     */
     public void write(int b) {
         write(b, 0);
     }
 
+    /**
+     * Writes a byte at an offset of this pointer.
+     *
+     * @param b The byte to write.
+     * @param offset The offset.
+     */
     public void write(int b, int offset) {
-        stack.getGC().getHeap()[location + offset] = (byte) b;
+        stack.getGC().getHeap()[address + offset] = (byte) b;
     }
 
     public void writeInt(int i, int offset) {
-        writeInt(stack.getGC().getHeap(), i, location + offset);
+        writeInt(stack.getGC().getHeap(), i, address + offset);
     }
 
     public static void writeInt(byte[] bytes, int i, int offset) {

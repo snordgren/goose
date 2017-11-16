@@ -8,6 +8,7 @@ public class Stack {
     private final Stack parentStack;
     private final Pointer[] pointers;
     private final int stackSize;
+    private int pointerCounter = 0;
     private boolean inScope = true;
 
     Stack(GC gc, int stackSize) {
@@ -53,6 +54,11 @@ public class Stack {
 
     public boolean isInScope() {
         return inScope;
+    }
+
+    void register(Pointer pointer) {
+        pointers[pointerCounter] = pointer;
+        pointerCounter++;
     }
 
     void setOutOfScope() {

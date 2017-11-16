@@ -5,8 +5,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.*;
 
 public class GCTest {
     @Test
@@ -77,5 +76,39 @@ public class GCTest {
         gc.collect();
         Pointer p1 = gc.allocate(12);
         assertNotNull(p1);
+    }
+
+    @Test
+    public void testPointerInvalidation() {
+        GC gc = new GC(1024, 8);
+        gc.enterStackFrame();
+        Pointer p = gc.allocate(4);
+        gc.leaveStackFrame();
+        gc.collect();
+        assertFalse(p.isValid());
+    }
+
+    @Test
+    public void testLeaveCollect() {
+        GC gc = new GC(16, 8);
+        gc.enterStackFrame();
+
+        Pointer p0 = gc.allocate(4);
+        assertNotNull(p0);
+        assertTrue(p0.isValid());
+
+        gc.enterStackFrame();
+        Pointer p1 = gc.allocate(4);
+        assertNotNull(p1);
+        assertTrue(p1.isValid());
+        gc.leaveStackFrame();
+        gc.collect();
+
+        assertFalse(p1.isValid());
+        assertTrue(p0.isValid());
+
+        gc.leaveStackFrame();
+        gc.collect();
+        assertFalse(p0.isValid());
     }
 }
