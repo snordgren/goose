@@ -44,6 +44,7 @@ public class GCTest {
         GC gc = new GC(1024, 8);
         gc.enterStackFrame();
         Pointer p = gc.allocate(4);
+        assertNotNull(p);
         gc.leaveStackFrame();
         gc.collect();
         for (int i = 0; i < gc.getHeap().length; i++) {
@@ -61,9 +62,20 @@ public class GCTest {
         Pointer p1 = gc.allocate(4);
         assertNotNull(p1);
         gc.leaveStackFrame();
-        ;
         gc.collect();
         Pointer p2 = gc.allocate(4);
         assertNotNull(p2);
+    }
+
+    @Test
+    public void testAllocateLarger() {
+        GC gc = new GC(16, 8);
+        gc.enterStackFrame();
+        Pointer p0 = gc.allocate(4);
+        assertNotNull(p0);
+        gc.leaveStackFrame();
+        gc.collect();
+        Pointer p1 = gc.allocate(12);
+        assertNotNull(p1);
     }
 }

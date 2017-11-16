@@ -23,4 +23,12 @@ public class Chunk {
     public int getStart() {
         return start;
     }
+
+    public Chunk merge(Chunk chunk) {
+        if (getEnd() == chunk.getStart()) {
+            int start = getStart();
+            int end = chunk.getEnd();
+            return new Chunk(start, end);
+        } else return chunk.merge(this);
+    }
 }

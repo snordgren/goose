@@ -70,6 +70,8 @@ public class GC {
             chunkList.add(new Chunk(pointerStart, pointerEnd));
             pointer.free();
         }
+
+        mergeChunks();
     }
 
     private List<Integer> getPotentialPointers(Pointer pointer) {
@@ -108,10 +110,40 @@ public class GC {
     }
 
     /**
-     *
+     * Leaves the current stack frame, for example when a function returns.
      */
     public void leaveStackFrame() {
         stack.setOutOfScope();
         stack = stack.getParentStack();
+    }
+
+    private Chunk getMergeableChunk(List<Chunk> available, Chunk chunk) {
+        Chunk mergeable = null;
+        for (Chunk c : available) {
+            if (c.getStart() == chunk.getEnd() ||
+                    c.getEnd() == chunk.getStart()) {
+                mergeable = c;
+            }
+        }
+
+        return mergeable;
+    }
+
+    /**
+     * Merge the chunks that are adjacent but still divided, allowing us to
+     * allocate larger objects than those that have been freed.
+     */
+    private void mergeChunks() {
+        List<Chunk> oldChunkList = new ArrayList<>(chunkList);
+        chunkList.clear();
+        for (Chunk chunk : oldChunkList) {
+            Chunk mergeableChunk = getMergeableChunk(chunkList, chunk);
+            if (mergeableChunk != null) {
+                chunkList.remove(mergeableChunk);
+                chunkList.add(mergeableChunk.merge(chunk));
+            } else {
+                chunkList.add(chunk);
+            }
+        }
     }
 }
