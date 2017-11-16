@@ -5,7 +5,6 @@ import java.util.List;
 
 /**
  * A super-simple tracing garbage collector.
- *
  */
 public class GC {
     private final byte[] heap;
@@ -60,6 +59,7 @@ public class GC {
         }
         Pointer pointer = new Pointer(stack, chunk.getStart(), size);
         pointerList.add(pointer);
+        stack.register(pointer);
         return pointer;
     }
 
@@ -149,7 +149,6 @@ public class GC {
      * Leaves the current stack frame, for example when a function returns.
      */
     public void leaveStackFrame() {
-        stack.setOutOfScope();
         stack = stack.getParentStack();
     }
 

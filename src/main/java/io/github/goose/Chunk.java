@@ -3,29 +3,38 @@ package io.github.goose;
 /**
  * A chunk represents a continuous block of non-allocated memory.
  */
-public class Chunk {
+class Chunk {
     private final int start, end;
 
-    public Chunk(int start, int end) {
+    /**
+     * Instantiate a new chunk between two memory points.
+     *
+     * @param start The start of this chunk.
+     * @param end The end of this chunk.
+     */
+    Chunk(int start, int end) {
         this.start = start;
         this.end = end;
     }
 
-    public int getEnd() {
+    /**
+     * @return The end point of this chunk.
+     */
+    int getEnd() {
         return end;
     }
 
     /**
      * @return The size of this chunk; its end address minus its start address.
      */
-    public int getSize() {
+    int getSize() {
         return end - start;
     }
 
     /**
      * @return The memory address of the start of this chunk.
      */
-    public int getStart() {
+    int getStart() {
         return start;
     }
 
@@ -37,7 +46,7 @@ public class Chunk {
      * @param size The size of the offset.
      * @return A new, smaller chunk.
      */
-    public Chunk getTail(int size) {
+    Chunk getTail(int size) {
         return new Chunk(start + size, end);
     }
 
@@ -47,7 +56,7 @@ public class Chunk {
      *
      * @return True if this chunk is adjacent to the other.
      */
-    public boolean isAdjacent(Chunk chunk) {
+    boolean isAdjacent(Chunk chunk) {
         return getStart() == chunk.getEnd()
                 || getEnd() == chunk.getStart();
     }
@@ -59,7 +68,7 @@ public class Chunk {
      * @param chunk The chunk to merge with.
      * @return A chunk if these chunks are adjacent, otherwise null.
      */
-    public Chunk merge(Chunk chunk) {
+    Chunk merge(Chunk chunk) {
         if (getEnd() == chunk.getStart()) {
             int start = getStart();
             int end = chunk.getEnd();
